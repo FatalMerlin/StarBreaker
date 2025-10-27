@@ -24,6 +24,6 @@ public class P4kService : IP4kService
             return;
         }
 
-        _p4KFile = P4kDirectoryNode.FromP4k(P4kFile.FromFile(path, p4kProgress), fileSystemProgress);
+        _p4KFile = P4kDirectoryNode.FromP4k(P4kFile.FromFile(path, p4kProgress),null, fileSystemProgress);
     }
 }
