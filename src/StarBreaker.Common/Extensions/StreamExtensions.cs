@@ -26,7 +26,7 @@ public static class StreamExtensions
     {
         var items = new T[count];
 
-        var bytes = MemoryMarshal.Cast<T, byte>(items);
+        var bytes = MemoryMarshal.Cast<T, byte>(items.AsSpan());
 
         stream.ReadExactly(bytes);
 
