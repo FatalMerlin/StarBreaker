@@ -1,0 +1,37 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="../.github/workflows/build.yml" />
+    <File Path="../.gitignore" />
+    <File Path="../crc32c.html" />
+    <File Path="../FORMATS.md" />
+    <File Path="../README.md" />
+    <File Path="../scripts/diff.ps1" />
+    <File Path="../scripts/mitm.ps1" />
+    <File Path="../scripts/stream-sc.py" />
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Project Path="StarBreaker.Chf/StarBreaker.Chf.csproj" />
+  <Project Path="StarBreaker.Cli/StarBreaker.Cli.csproj" />
+  <Project Path="StarBreaker.Common/StarBreaker.Common.csproj" />
+  <Project Path="StarBreaker.CryChunkFile/StarBreaker.CryChunkFile.csproj" />
+  <Project Path="StarBreaker.CryXmlB/StarBreaker.CryXmlB.csproj" />
+  <Project Path="StarBreaker.DataCore.Generated/StarBreaker.DataCore.Generated.csproj">
+    <Build Project="false" />
+  </Project>
+  <Project Path="StarBreaker.DataCore.TypeGenerator/StarBreaker.DataCore.TypeGenerator.csproj" />
+  <Project Path="StarBreaker.DataCore/StarBreaker.DataCore.csproj" />
+  <Project Path="StarBreaker.Dds/StarBreaker.Dds.csproj" />
+  <Project Path="StarBreaker.Extraction/StarBreaker.Extraction.csproj" />
+  <Project Path="StarBreaker.Grpc/StarBreaker.Grpc.csproj">
+    <Build Project="false" />
+  </Project>
+  <Project Path="StarBreaker.GrpcClient/StarBreaker.GrpcClient.csproj">
+    <Build Project="false" />
+  </Project>
+  <Project Path="StarBreaker.P4k/StarBreaker.P4k.csproj" />
+  <Project Path="StarBreaker.Protobuf/StarBreaker.Protobuf.csproj" />
+  <Project Path="StarBreaker.Sandbox/StarBreaker.Sandbox.csproj" />
+  <Project Path="StarBreaker.Wwise/StarBreaker.Wwise.csproj" />
+  <Project Path="StarBreaker/StarBreaker.csproj" />
+</Solution>
