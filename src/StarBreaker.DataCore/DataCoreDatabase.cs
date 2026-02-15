@@ -4,6 +4,8 @@ using StarBreaker.Common;
 
 namespace StarBreaker.DataCore;
 
+public readonly record struct RecordInfo(int StructIndex, int InstanceIndex, bool IsMainRecord, DataCoreStringId FileNameOffset);
+
 public sealed class DataCoreDatabase
 {
     private readonly int DataSectionOffset;
@@ -46,6 +48,7 @@ public sealed class DataCoreDatabase
     private readonly FrozenDictionary<int, string> CachedStrings;
     private readonly FrozenDictionary<int, string> CachedStrings2;
     private readonly FrozenDictionary<CigGuid, DataCoreRecord> RecordMap;
+    private readonly FrozenDictionary<CigGuid, RecordInfo> RecordInfoMap;
 
     public int StructsHash => StructDefinitions.Sum(x => x.FirstAttributeIndex ^ x.AttributeCount);
 
@@ -135,6 +138,7 @@ public sealed class DataCoreDatabase
         DataSection = reader.ReadBytes((int)(fs.Length - bytesRead));
         RecordMap = RecordDefinitions.ToFrozenDictionary(x => x.Id);
         MainRecords = ReadMainRecords();
+        RecordInfoMap = BuildRecordInfoMap();
 #if DEBUG
         DebugGlobal.Database = this;
 #endif
@@ -162,7 +166,22 @@ public sealed class DataCoreDatabase
 
     public string GetString2(DataCoreStringId2 id) => CachedStrings2[id.Id];
     public DataCoreRecord GetRecord(CigGuid guid) => RecordMap[guid];
+
+    public bool TryGetRecordInfo(CigGuid guid, out RecordInfo info) => RecordInfoMap.TryGetValue(guid, out info);
     public DataCorePropertyDefinition[] GetProperties(int structIndex) => Properties[structIndex];
+
+    private FrozenDictionary<CigGuid, RecordInfo> BuildRecordInfoMap()
+    {
+        var map = new Dictionary<CigGuid, RecordInfo>(RecordDefinitions.Length);
+
+        foreach (var record in RecordDefinitions)
+        {
+            var isMain = MainRecords.Contains(record.Id);
+            map[record.Id] = new RecordInfo(record.StructIndex, record.InstanceIndex, isMain, record.FileNameOffset);
+        }
+
+        return map.ToFrozenDictionary();
+    }
 
     private static FrozenDictionary<int, string> ReadStringTable(ReadOnlySpan<byte> span)
     {

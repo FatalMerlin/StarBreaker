@@ -1,59 +1,114 @@
-﻿using System.Text;
+using System.Text;
 
 namespace StarBreaker.DataCore.TypeGenerator;
 
 public class DataCoreTypeGenerator
 {
     private readonly DataCoreDatabase Database;
+    private readonly string _namespace;
+    private readonly string _dataCoreClassName;
 
-    public DataCoreTypeGenerator(DataCoreDatabase database)
+    public DataCoreTypeGenerator(DataCoreDatabase database, string @namespace = "StarBreaker.DataCoreGenerated", string dataCoreClassName = "DataCoreBinary")
     {
         Database = database;
+        _namespace = @namespace;
+        _dataCoreClassName = dataCoreClassName;
     }
 
-    //Note: This is not a standard source generator because those don't really deal well with the way
-    // we are getting the type information. We're reading a pretty big 200mb blob with random data in there,
-    // usually standard source generators use the code itself or sometimes small and simple text files.
-    public void Generate(string path)
+    /// <summary>
+    /// Generates a complete, buildable project with all types and infrastructure.
+    /// </summary>
+    public void Generate(string path, bool includeProjectFile = true)
     {
         Directory.CreateDirectory(path);
 
         GenerateTypes(path);
         GenerateEnums(path);
-        GenerateTypeMap(path);
-        GenerateConstantsFile(path);
+        GenerateDataCoreBinary(path);
+
+        if (includeProjectFile)
+            GenerateProjectFile(path);
     }
 
-    private void GenerateTypeMap(string path)
+    private void GenerateProjectFile(string path)
     {
-        Directory.CreateDirectory(Path.Combine(path));
+        var sb = new StringBuilder();
+        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
+        sb.AppendLine();
+        sb.AppendLine("  <PropertyGroup>");
+        sb.AppendLine("    <TargetFramework>net10.0</TargetFramework>");
+        sb.AppendLine("    <ImplicitUsings>enable</ImplicitUsings>");
+        sb.AppendLine("    <Nullable>enable</Nullable>");
+        sb.AppendLine("    <LangVersion>latest</LangVersion>");
+        sb.AppendLine("  </PropertyGroup>");
+        sb.AppendLine();
+        sb.AppendLine("  <ItemGroup>");
+        sb.AppendLine("    <!-- Reference the StarBreaker.DataCore NuGet package or project -->");
+        sb.AppendLine("    <!-- Option 1: NuGet package (when published) -->");
+        sb.AppendLine("    <!-- <PackageReference Include=\"StarBreaker.DataCore\" Version=\"1.0.0\" /> -->");
+        sb.AppendLine("    ");
+        sb.AppendLine("    <!-- Option 2: Project reference (for development) -->");
+        sb.AppendLine("    <!-- <ProjectReference Include=\"path/to/StarBreaker.DataCore.csproj\" /> -->");
+        sb.AppendLine("  </ItemGroup>");
+        sb.AppendLine();
+        sb.AppendLine("</Project>");
 
-        var typeMapSb = new StringBuilder();
-        //map the struct indexes to the generated types
-        typeMapSb.AppendLine("namespace StarBreaker.DataCoreGenerated;");
-        typeMapSb.AppendLine();
-        typeMapSb.AppendLine("public sealed partial class DataCoreBinaryGenerated");
-        typeMapSb.AppendLine("{");
-        typeMapSb.AppendLine("    public IDataCoreReadable? ReadFromRecord(int structIndex, int instanceIndex)");
-        typeMapSb.AppendLine("    {");
-        typeMapSb.AppendLine("        if (structIndex == -1 || instanceIndex == -1)");
-        typeMapSb.AppendLine("            return null;");
-        typeMapSb.AppendLine();
-        typeMapSb.AppendLine("        return structIndex switch");
-        typeMapSb.AppendLine("        {");
+        File.WriteAllText(Path.Combine(path, $"{_namespace}.csproj"), sb.ToString());
+    }
+
+    private void GenerateDataCoreBinary(string path)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("using StarBreaker.Common;");
+        sb.AppendLine("using StarBreaker.DataCore;");
+        sb.AppendLine();
+        sb.AppendLine($"namespace {_namespace};");
+        sb.AppendLine();
+
+        // Constants
+        sb.AppendLine("public static class DataCoreConstants");
+        sb.AppendLine("{");
+        sb.AppendLine($"    public const int StructCount = {Database.StructDefinitions.Length};");
+        sb.AppendLine($"    public const int EnumCount = {Database.EnumDefinitions.Length};");
+        sb.AppendLine($"    public const int StructsHash = {Database.StructsHash};");
+        sb.AppendLine($"    public const int EnumsHash = {Database.EnumsHash};");
+        sb.AppendLine("}");
+        sb.AppendLine();
+
+        // Main DataCoreBinary class
+        sb.AppendLine($"public sealed class {_dataCoreClassName}");
+        sb.AppendLine("{");
+        sb.AppendLine("    public DataCoreTypedReader Reader { get; }");
+        sb.AppendLine();
+        sb.AppendLine($"    public {_dataCoreClassName}(DataCoreDatabase database)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        Reader = new DataCoreTypedReader(database, ReadFromRecord);");
+        sb.AppendLine("        Reader.ValidateSchema(DataCoreConstants.StructCount, DataCoreConstants.EnumCount, DataCoreConstants.StructsHash, DataCoreConstants.EnumsHash);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // ReadFromRecord switch statement
+        sb.AppendLine("    private IDataCoreTypedReadable? ReadFromRecord(int structIndex, int instanceIndex)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (structIndex == -1 || instanceIndex == -1)");
+        sb.AppendLine("            return null;");
+        sb.AppendLine();
+        sb.AppendLine("        return structIndex switch");
+        sb.AppendLine("        {");
+
         for (var i = 0; i < Database.StructDefinitions.Length; i++)
         {
             var structDefinition = Database.StructDefinitions[i];
-            typeMapSb.AppendLine($"            {i} => ReadFromInstance<{structDefinition.GetName(Database)}>(structIndex, instanceIndex),");
+            sb.AppendLine($"            {i} => Reader.GetOrReadInstance<{structDefinition.GetName(Database)}>(structIndex, instanceIndex),");
         }
 
-        typeMapSb.AppendLine("            _ => throw new NotImplementedException()");
-        typeMapSb.AppendLine("        };");
+        sb.AppendLine("            _ => throw new NotImplementedException($\"Unknown struct index: {structIndex}\")");
+        sb.AppendLine("        };");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
 
-        typeMapSb.AppendLine("    }");
-        typeMapSb.AppendLine("}");
-
-        File.WriteAllText(Path.Combine(path, "TypeMap.cs"), typeMapSb.ToString());
+        File.WriteAllText(Path.Combine(path, $"{_dataCoreClassName}.cs"), sb.ToString());
     }
 
     private void GenerateEnums(string path)
@@ -64,19 +119,11 @@ public class DataCoreTypeGenerator
             var fileName = enumDefinition.GetName(Database) + ".cs";
             var sb = new StringBuilder();
 
-            sb.AppendLine("using System;");
-            sb.AppendLine("using System.Collections.Generic;");
-            sb.AppendLine("using System.Text.Json.Serialization;");
-            sb.AppendLine("using StarBreaker.DataCore;");
-
+            sb.AppendLine($"namespace {_namespace};");
             sb.AppendLine();
-            sb.AppendLine("namespace StarBreaker.DataCoreGenerated;");
-            sb.AppendLine();
-
             sb.AppendLine($"public enum {enumDefinition.GetName(Database)} : int");
             sb.AppendLine("{");
-
-            sb.AppendLine($"    __Unknown = -1,");
+            sb.AppendLine("    __Unknown = -1,");
 
             for (var i = 0; i < enumDefinition.ValueCount; i++)
             {
@@ -85,9 +132,7 @@ public class DataCoreTypeGenerator
 
             sb.AppendLine("}");
 
-            var final = sb.ToString();
-
-            File.WriteAllText(Path.Combine(path, "Enums", fileName), final);
+            File.WriteAllText(Path.Combine(path, "Enums", fileName), sb.ToString());
         }
     }
 
@@ -97,49 +142,45 @@ public class DataCoreTypeGenerator
         for (var structIndex = 0; structIndex < Database.StructDefinitions.Length; structIndex++)
         {
             var structDefinition = Database.StructDefinitions[structIndex];
-            //write each struct definition to a file
             var fileName = structDefinition.GetName(Database) + ".cs";
             var sb = new StringBuilder();
 
-            sb.AppendLine("using System;");
-            sb.AppendLine("using System.Collections.Generic;");
-            sb.AppendLine("using System.Text.Json.Serialization;");
-            sb.AppendLine("using StarBreaker.DataCore;");
             sb.AppendLine("using StarBreaker.Common;");
+            sb.AppendLine("using StarBreaker.DataCore;");
             sb.AppendLine();
-            sb.AppendLine("namespace StarBreaker.DataCoreGenerated;");
+            sb.AppendLine($"namespace {_namespace};");
             sb.AppendLine();
 
+            // Record definition with interface
             if (structDefinition.ParentTypeIndex != -1)
             {
                 var parent = Database.StructDefinitions[structDefinition.ParentTypeIndex];
-                sb.AppendLine($"public record {structDefinition.GetName(Database)} : {parent.GetName(Database)}, IDataCoreReadable<{structDefinition.GetName(Database)}>");
+                sb.AppendLine($"public record {structDefinition.GetName(Database)} : {parent.GetName(Database)}, IDataCoreTypedReadable<{structDefinition.GetName(Database)}>");
             }
             else
             {
-                sb.AppendLine($"public record {structDefinition.GetName(Database)} : IDataCoreReadable<{structDefinition.GetName(Database)}>");
+                sb.AppendLine($"public record {structDefinition.GetName(Database)} : IDataCoreTypedReadable<{structDefinition.GetName(Database)}>");
             }
 
             sb.AppendLine("{");
-            var properties = Database.PropertyDefinitions.AsSpan(structDefinition.FirstAttributeIndex, structDefinition.AttributeCount);
 
+            // Properties
+            var properties = Database.PropertyDefinitions.AsSpan(structDefinition.FirstAttributeIndex, structDefinition.AttributeCount);
             foreach (var property in properties)
             {
                 var propertyType = GetPropertyType(property);
                 var name = property.GetName(Database);
-
                 sb.AppendLine($"    public required {propertyType} @{name} {{ get; init; }}");
             }
 
             sb.AppendLine();
 
-            WriteSpecialConstructor(sb, structDefinition, structIndex);
+            // Read method
+            WriteReadMethod(sb, structDefinition, structIndex);
 
             sb.AppendLine("}");
 
-            var final = sb.ToString();
-
-            File.WriteAllText(Path.Combine(path, "Types", fileName), final);
+            File.WriteAllText(Path.Combine(path, "Types", fileName), sb.ToString());
         }
     }
 
@@ -161,12 +202,11 @@ public class DataCoreTypeGenerator
         DataType.String => "string",
 
         DataType.EnumChoice => Database.EnumDefinitions[property.StructIndex].GetName(Database),
-        DataType.Reference => $"{Database.StructDefinitions[property.StructIndex].GetName(Database)}?",
-        DataType.StrongPointer => $"{Database.StructDefinitions[property.StructIndex].GetName(Database)}?",
+        DataType.Reference => $"DataCoreRef<{Database.StructDefinitions[property.StructIndex].GetName(Database)}>?",
+        DataType.StrongPointer => $"DataCoreRef<{Database.StructDefinitions[property.StructIndex].GetName(Database)}>?",
+        DataType.WeakPointer => $"DataCoreRef<{Database.StructDefinitions[property.StructIndex].GetName(Database)}>?",
         DataType.Class => Database.StructDefinitions[property.StructIndex].GetName(Database),
 
-        DataType.WeakPointer => "DataCorePointer",
-        // DataType.WeakPointer => Database.StructDefinitions[property.StructIndex].GetName(Database)?,
         _ => throw new ArgumentOutOfRangeException()
     };
 
@@ -190,10 +230,9 @@ public class DataCoreTypeGenerator
         DataType.EnumChoice => Database.EnumDefinitions[property.StructIndex].GetName(Database),
         DataType.Reference => Database.StructDefinitions[property.StructIndex].GetName(Database),
         DataType.StrongPointer => Database.StructDefinitions[property.StructIndex].GetName(Database),
+        DataType.WeakPointer => Database.StructDefinitions[property.StructIndex].GetName(Database),
         DataType.Class => Database.StructDefinitions[property.StructIndex].GetName(Database),
 
-        DataType.WeakPointer => "DataCorePointer",
-        // DataType.WeakPointer => Database.StructDefinitions[property.StructIndex].GetName(Database)?,
         _ => throw new ArgumentOutOfRangeException()
     };
 
@@ -215,12 +254,11 @@ public class DataCoreTypeGenerator
         DataType.String => "string[]",
 
         DataType.EnumChoice => $"{Database.EnumDefinitions[property.StructIndex].GetName(Database)}[]",
-        DataType.Reference => $"{Database.StructDefinitions[property.StructIndex].GetName(Database)}?[]",
-        DataType.StrongPointer => $"{Database.StructDefinitions[property.StructIndex].GetName(Database)}?[]",
+        DataType.Reference => $"DataCoreRef<{Database.StructDefinitions[property.StructIndex].GetName(Database)}>?[]",
+        DataType.StrongPointer => $"DataCoreRef<{Database.StructDefinitions[property.StructIndex].GetName(Database)}>?[]",
+        DataType.WeakPointer => $"DataCoreRef<{Database.StructDefinitions[property.StructIndex].GetName(Database)}>?[]",
         DataType.Class => $"{Database.StructDefinitions[property.StructIndex].GetName(Database)}[]",
 
-        DataType.WeakPointer => "DataCorePointer[]",
-        // DataType.WeakPointer => $"{Database.StructDefinitions[property.StructIndex].GetName(Database)}?[]",
         _ => throw new ArgumentOutOfRangeException()
     };
 
@@ -230,17 +268,18 @@ public class DataCoreTypeGenerator
         _ => GetArrayPropertyType(property)
     };
 
-    private void WriteSpecialConstructor(StringBuilder sb, DataCoreStructDefinition structDefinition, int structIndex)
+    private void WriteReadMethod(StringBuilder sb, DataCoreStructDefinition structDefinition, int structIndex)
     {
+        var typeName = structDefinition.GetName(Database);
+
         if (structDefinition.ParentTypeIndex != -1)
-            sb.AppendLine($"    public new static {structDefinition.GetName(Database)} Read(DataCoreBinaryGenerated dataCore, ref SpanReader reader)");
+            sb.AppendLine($"    public new static {typeName} Read(DataCoreTypedReader dataCore, ref SpanReader reader)");
         else
-            sb.AppendLine($"    public static {structDefinition.GetName(Database)} Read(DataCoreBinaryGenerated dataCore, ref SpanReader reader)");
+            sb.AppendLine($"    public static {typeName} Read(DataCoreTypedReader dataCore, ref SpanReader reader)");
+
+        sb.AppendLine("    {");
 
         var allprops = Database.GetProperties(structIndex).AsSpan();
-
-        //for now we ignore parent types
-        sb.AppendLine("    {");
 
         foreach (var property in allprops)
         {
@@ -251,7 +290,7 @@ public class DataCoreTypeGenerator
         }
 
         sb.AppendLine();
-        sb.AppendLine($"        return new {structDefinition.GetName(Database)}");
+        sb.AppendLine($"        return new {typeName}");
         sb.AppendLine("        {");
 
         foreach (var property in allprops)
@@ -260,9 +299,7 @@ public class DataCoreTypeGenerator
             sb.AppendLine($"            @{name} = _{name},");
         }
 
-
         sb.AppendLine("        };");
-
         sb.AppendLine("    }");
     }
 
@@ -281,32 +318,28 @@ public class DataCoreTypeGenerator
                 sb.AppendLine($"        var _{name} = dataCore.EnumParse(reader.Read<DataCoreStringId>(), {enumName}.__Unknown);");
                 break;
             case DataType.Reference:
-                sb.AppendLine($"        var _{name} = dataCore.ReadFromReference<{propertyType}>(reader.Read<DataCoreReference>());");
+                sb.AppendLine($"        var _{name} = dataCore.CreateRef<{propertyType}>(reader.Read<DataCoreReference>());");
                 break;
             case DataType.StrongPointer:
-                sb.AppendLine($"        var _{name} = dataCore.ReadFromPointer<{propertyType}>(reader.Read<DataCorePointer>());");
-                break;
             case DataType.WeakPointer:
-                //do as default. we probably should handle this, it's actually feasible now :D
-                sb.AppendLine($"        var _{name} = reader.Read<{propertyType}>();");
+                sb.AppendLine($"        var _{name} = dataCore.CreateRef<{propertyType}>(reader.Read<DataCorePointer>());");
                 break;
             case DataType.String:
             case DataType.Locale:
                 sb.AppendLine($"        var _{name} = reader.Read<DataCoreStringId>().ToString(dataCore.Database);");
                 break;
-            case DataType.Guid:
-            case DataType.Double:
-            case DataType.Single:
-            case DataType.UInt64:
-            case DataType.UInt32:
-            case DataType.UInt16:
-            case DataType.Byte:
-            case DataType.Int64:
-            case DataType.Int32:
-            case DataType.Int16:
-            case DataType.SByte:
             case DataType.Boolean:
-                //this one should be fine for everything else.
+            case DataType.Byte:
+            case DataType.SByte:
+            case DataType.Int16:
+            case DataType.UInt16:
+            case DataType.Int32:
+            case DataType.UInt32:
+            case DataType.Int64:
+            case DataType.UInt64:
+            case DataType.Single:
+            case DataType.Double:
+            case DataType.Guid:
                 sb.AppendLine($"        var _{name} = reader.Read<{propertyType}>();");
                 break;
             default:
@@ -322,13 +355,13 @@ public class DataCoreTypeGenerator
         switch (property.DataType)
         {
             case DataType.Reference:
-                sb.AppendLine($"        var _{name} = dataCore.ReadReferenceArray<{propertyType}>(ref reader);");
+                sb.AppendLine($"        var _{name} = dataCore.ReadRefArray<{propertyType}>(ref reader);");
                 break;
             case DataType.StrongPointer:
-                sb.AppendLine($"        var _{name} = dataCore.ReadStrongPointerArray<{propertyType}>(ref reader);");
+                sb.AppendLine($"        var _{name} = dataCore.ReadStrongRefArray<{propertyType}>(ref reader);");
                 break;
             case DataType.WeakPointer:
-                sb.AppendLine($"        var _{name} = dataCore.ReadWeakPointerArray<{propertyType}>(ref reader);");
+                sb.AppendLine($"        var _{name} = dataCore.ReadWeakRefArray<{propertyType}>(ref reader);");
                 break;
             case DataType.Class:
                 sb.AppendLine($"        var _{name} = dataCore.ReadClassArray<{propertyType}>(ref reader, {property.StructIndex});");
@@ -381,21 +414,5 @@ public class DataCoreTypeGenerator
             default:
                 throw new ArgumentOutOfRangeException();
         }
-    }
-
-    private void GenerateConstantsFile(string path)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("namespace StarBreaker.DataCoreGenerated;");
-        sb.AppendLine();
-        sb.AppendLine("public static class DataCoreConstants");
-        sb.AppendLine("{");
-        sb.AppendLine($"    public const int StructCount = {Database.StructDefinitions.Length};");
-        sb.AppendLine($"    public const int EnumCount = {Database.EnumDefinitions.Length};");
-        sb.AppendLine($"    public const int StructsHash = {Database.StructsHash};");
-        sb.AppendLine($"    public const int EnumsHash = {Database.EnumsHash};");
-        sb.AppendLine("}");
-
-        File.WriteAllText(Path.Combine(path, "Constants.cs"), sb.ToString());
     }
 }

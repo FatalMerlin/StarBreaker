@@ -5,7 +5,8 @@ using StarBreaker.Sandbox;
 
 //SocPakSandbox.Run();
 //DataCoreSandbox.Run();
-P4kSandbox.Run();
+//P4kSandbox.Run();
+GeneratedSandbox.Run();
 //Crc32CSandbox.Run();
 //WwiseSandbox.Run();
 //GltfSandbox.Run();

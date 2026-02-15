@@ -16,9 +16,6 @@
   <Project Path="StarBreaker.Common/StarBreaker.Common.csproj" />
   <Project Path="StarBreaker.CryChunkFile/StarBreaker.CryChunkFile.csproj" />
   <Project Path="StarBreaker.CryXmlB/StarBreaker.CryXmlB.csproj" />
-  <Project Path="StarBreaker.DataCore.Generated/StarBreaker.DataCore.Generated.csproj">
-    <Build Project="false" />
-  </Project>
   <Project Path="StarBreaker.DataCore.TypeGenerator/StarBreaker.DataCore.TypeGenerator.csproj" />
   <Project Path="StarBreaker.DataCore/StarBreaker.DataCore.csproj" />
   <Project Path="StarBreaker.Dds/StarBreaker.Dds.csproj" />

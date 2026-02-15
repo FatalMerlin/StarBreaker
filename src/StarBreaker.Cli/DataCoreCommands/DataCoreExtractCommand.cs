@@ -54,13 +54,15 @@ public class DataCoreExtractCommand : ICommand
         }
         else if (!string.IsNullOrEmpty(P4kFile))
         {
-            var p4k = P4kDirectoryNode.FromP4k(P4k.P4kFile.FromFile(P4kFile));
+            var p4k = P4k.P4kFile.FromFile(P4kFile);
             console.Output.WriteLine("P4k loaded.");
             foreach (var file in DataCoreUtils.KnownPaths)
             {
-                if (!p4k.FileExists(file)) continue;
+                var entry = p4k.Entries.FirstOrDefault(e => e.Name == file);
+                if (entry == null)
+                    continue;
 
-                dcbStream = p4k.OpenRead(file);
+                dcbStream = p4k.OpenStream(entry);
                 console.Output.WriteLine($"{file} found");
                 break;
             }

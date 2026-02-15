@@ -18,7 +18,16 @@ public class DataCoreTypeGeneratorCommand : ICommand
 
     [CommandOption("output", 'o', Description = "Path to the output directory", EnvironmentVariable = "OUTPUT_FOLDER")]
     public required string OutputDirectory { get; init; }
-    
+
+    [CommandOption("namespace", 'n', Description = "Namespace for generated code", EnvironmentVariable = "NAMESPACE")]
+    public string Namespace { get; init; } = "StarBreaker.DataCoreGenerated";
+
+    [CommandOption("classname", 'c', Description = "Class name for the DataCoreBinary class", EnvironmentVariable = "CLASS_NAME")]
+    public string ClassName { get; init; } = "DataCoreBinary";
+
+    [CommandOption("no-project", Description = "Skip generating the .csproj file (for embedding in existing projects)", EnvironmentVariable = "NO_PROJECT")]
+    public bool NoProjectFile { get; init; } = false;
+
     public ValueTask ExecuteAsync(IConsole console)
     {
         if (P4kFile == null && DcbFile == null)
@@ -61,10 +70,10 @@ public class DataCoreTypeGeneratorCommand : ICommand
         
 
         console.Output.WriteLine("Generating DataCore types...");
-        var dcr = new DataCoreTypeGenerator(new DataCoreDatabase(dcbStream));
+        var dcr = new DataCoreTypeGenerator(new DataCoreDatabase(dcbStream), Namespace, ClassName);
 
         console.Output.WriteLine("Writing DataCore types...");
-        dcr.Generate(OutputDirectory);
+        dcr.Generate(OutputDirectory, includeProjectFile: !NoProjectFile);
         
         console.Output.WriteLine("Done.");
 

@@ -84,8 +84,10 @@
             "commandName": "Project",
             "commandLineArgs": "dcb-generate",
             "environmentVariables": {
-                "INPUT_P4K": "C:\\Program Files\\Roberts Space Industries\\StarCitizen\\PTU\\Data.p4k",
-                "OUTPUT_FOLDER": "C:\\Development\\StarCitizen\\StarBreaker\\src\\StarBreaker.DataCore.Generated\\Generated"
+                "INPUT_P4K": "C:\\Program Files\\Roberts Space Industries\\StarCitizen\\LIVE\\Data.p4k",
+                "OUTPUT_FOLDER": "C:\\Development\\StarCitizen\\StarBreaker\\src\\StarBreaker.Sandbox\\Generated",
+                "NAMESPACE": "StarBreaker.Sandbox.Generated",
+                "NO_PROJECT": "true"
             }
         },
         "diff": {

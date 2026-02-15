@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
     </PropertyGroup>
@@ -16,5 +16,10 @@
 
     <ItemGroup>
         <Content Include="*.txt" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+    <!-- Conditionally exclude GeneratedSandbox.cs if Generated folder doesn't exist -->
+    <ItemGroup Condition="!Exists('Generated\DataCoreBinary.cs')">
+        <Compile Remove="GeneratedSandbox.cs" />
     </ItemGroup>
 </Project>
